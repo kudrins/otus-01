@@ -1,0 +1,141 @@
+- название выполняемого задания:
+Обновить ядро ОС из репозитория ELRepo
+
+В каталог home/sergey/vagrant0 загружен vagrant box:
+http://cloud.centos.org/centos/8-stream/x86_64/images/CentOS-Stream-Vagrant-8-latest.x86_64.vagrant-virtualbox.box
+переименован в: CentOS-8-latest-virtualbox.box
+иначе выдавал ошибку: 
+"An error occurred while downloading the remote file.
+Couldn't open file"
+при команде: vagrant box add --name centos8 CentOS-Stream-Vagrant-8-latest.x86_64.vagrant-virtualbox.box
+
+импортируем полученный vagrant box в Vagrant 
+  vagrant box add --name centos8 CentOS-8-latest-virtualbox.box
+      
+Vagrantfile:
+MACHINES = {
+  :"kernel-update" => {
+              :box_name => "centos8",
+              :cpus => 2,
+              :memory => 1024,
+            }
+}
+Vagrant.configure("2") do |config|
+  MACHINES.each do |boxname, boxconfig|
+    config.vm.synced_folder ".", "/vagrant", disabled: true
+    config.vm.define boxname do |box|
+      box.vm.box = boxconfig[:box_name]
+      box.vm.host_name = boxname.to_s
+      box.vm.provider "virtualbox" do |v|
+        v.memory = boxconfig[:memory]
+        v.cpus = boxconfig[:cpus]
+      end
+    end
+  end
+end
+
+В каталоге с этим Vagrantfile
+  запускается виртуальная машина:
+     vagrant up
+  подключаемся по ssh к созданной виртуальной машине
+     vagrant ssh
+  текущая версия ядра
+     uname -r
+        4.18.0-519.el8.x86_64
+  подключим репозиторий, откуда возьмём необходимую версию ядра:
+     sudo yum install -y https://www.elrepo.org/elrepo-release-8.el8.elrepo.noarch.rpm
+  установим последнее ядро из репозитория elrepo-kernel
+     sudo yum --enablerepo elrepo-kernel install kernel-ml -y
+  перезагружаем нашу виртуальную машину
+     sudo reboot
+  выбраем новое ядро при загрузке ОС 
+  подключаемся по ssh
+     vagrant ssh
+  текущая версия ядра
+     uname -r
+        6.5.10-el8.elrepo.x86_64 
+------------------------------------------
+- название выполняемого задания:
+Создать Vagrant box c помощью Packer
+
+      mkdir packer
+      cd packer
+      
+   из https://github.com/Nickmob/vagrant_kernel_update/packer
+   загружаем в этот каталог файл
+     centos.json
+   
+   создадим в каталоге packer каталог http
+      mkdir http
+    
+   Из https://github.com/Nickmob/vagrant_kernel_update/tree/main/packer/http
+   загружаем в этот каталог файл
+      vagrant.ks
+      
+   создадим в каталоге packer каталог scripts
+      mkdir scripts
+
+   из https://github.com/Nickmob/vagrant_kernel_update/tree/main/packer/scripts
+   загружаем в этот каталог файлы
+      scripts/stage-1-kernel-update.sh
+      scripts/stage-2-clean.sh
+      
+   после того, как мы создали необходимые файлы, приступакм к сборке нашего образа
+      packer build centos.json
+      
+   после успешного создания образа в каталоге packer появился файл
+      сentos-8-kernel-6-x86_64-Minimal.box
+     
+   импортируем полученный vagrant box в Vagrant 
+      vagrant box add --name centos8-kernel6 centos-8-kernel-6-x86_64-Minimal.box 
+      
+     vagrant box list
+         centos8-kernel6   (virtualbox, 0)
+
+   cоздадим Vagrantfile на основе образа centos8-kernel6: 
+       vagrant init centos8-kernel6
+       
+   запустим ВМ
+      vagrant up 
+   подключимся к ней по SSH:
+      vagrant ssh 
+   проверим версию ядра: 
+      uname -r
+      6.5.10-1.el8.elrepo.x86_64
+----------------------------------------------   
+- название выполняемого задания:
+Загрузка образа в Vagrant cloud
+  
+  подключаем vpn
+  регистриуемся на https://app.vagrantup.com/
+  создаём в разделе settings/Security токен
+  из каталога packer логинимся
+     vagrant cloud auth login
+        Vagrant Cloud username or email: kudrin_s@mail.ru
+        Password (will be hidden):<password>
+        Token description (Defaults to "Vagrant login from ubuntu1"):<токен>
+  публикуем наш образ: 
+     vagrant cloud publish --release kudrin_s/centos8-kernel6 1.0 virtualbox    centos-8-kernel-6-x86_64-Minimal.box
+    
+загрузка образа по этой команде шла 2 часа и каждый раз завершалась ошибкой.
+Загрузил через веб интерфейс.
+Ссылка:
+   https://app.vagrantup.com/kudrin_s/boxes/centos8-kernel6/versions/1.0/providers/virtualbox/amd64/vagrant.box
+       
+    
+   
+   
+ 
+ 
+
+  
+     
+
+      
+      
+
+   
+
+
+
+     
